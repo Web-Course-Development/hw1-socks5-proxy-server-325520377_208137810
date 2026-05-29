@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"io"
 )
 
 func main() {
@@ -32,11 +33,29 @@ func main() {
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-	// TODO: Implement SOCKS5 protocol
-	// 1. Read client greeting and negotiate authentication method
-	// 2. Perform authentication if required (when PROXY_USER env var is set)
-	// 3. Read CONNECT request
-	// 4. Connect to target server
-	// 5. Send success/error reply
-	// 6. Relay data between client and target
+	// Test 1 only: read SOCKS5 greeting
+	header := make([]byte, 2)
+
+	_, err := io.ReadFull(conn, header)
+	if err != nil {
+		log.Printf("failed to read greeting header: %v", err)
+		return
+	}
+
+	version := header[0]
+	nMethods := int(header[1])
+
+	methods := make([]byte, nMethods)
+	_, err = io.ReadFull(conn, methods)
+	if err != nil {
+		log.Printf("failed to read methods: %v", err)
+		return
+	}
+
+	if version == 0x05 && nMethods == 1 && methods[0] == 0x00 {
+		conn.Write([]byte{0x05, 0x00})
+		return
+	}
+
+	conn.Write([]byte{0x05, 0xFF})
 }
