@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"io"
+	"os"
 )
 
 func main() {
@@ -33,7 +34,6 @@ func main() {
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-	// Test 1 only: read SOCKS5 greeting
 	header := make([]byte, 2)
 
 	_, err := io.ReadFull(conn, header)
@@ -52,10 +52,85 @@ func handleConnection(conn net.Conn) {
 		return
 	}
 
-	if version == 0x05 && nMethods == 1 && methods[0] == 0x00 {
-		conn.Write([]byte{0x05, 0x00})
+	if version != 0x05 {
+		conn.Write([]byte{0x05, 0xFF})
 		return
 	}
 
-	conn.Write([]byte{0x05, 0xFF})
+	requiredMethod := byte(0x00) // no-auth by default
+	if os.Getenv("PROXY_USER") != "" {
+		requiredMethod = 0x02 // username/password
+	}
+
+	methodFound := false
+	for _, method := range methods {
+		if method == requiredMethod {
+			methodFound = true
+			break
+		}
+	}
+
+	if !methodFound {
+		conn.Write([]byte{0x05, 0xFF})
+		return
+	}
+
+	conn.Write([]byte{0x05, requiredMethod})
+
+	if requiredMethod == 0x02 {
+		if !authenticateUserPass(conn) {
+			return
+		}
+	}
+}
+	func authenticateUserPass(conn net.Conn) bool {
+	header := make([]byte, 2)
+
+	_, err := io.ReadFull(conn, header)
+	if err != nil {
+		log.Printf("failed to read auth header: %v", err)
+		return false
+	}
+
+	version := header[0]
+	usernameLen := int(header[1])
+
+	if version != 0x01 {
+		conn.Write([]byte{0x01, 0x01})
+		return false
+	}
+
+	username := make([]byte, usernameLen)
+	_, err = io.ReadFull(conn, username)
+	if err != nil {
+		log.Printf("failed to read username: %v", err)
+		return false
+	}
+
+	passLenBuf := make([]byte, 1)
+	_, err = io.ReadFull(conn, passLenBuf)
+	if err != nil {
+		log.Printf("failed to read password length: %v", err)
+		return false
+	}
+
+	passwordLen := int(passLenBuf[0])
+	password := make([]byte, passwordLen)
+
+	_, err = io.ReadFull(conn, password)
+	if err != nil {
+		log.Printf("failed to read password: %v", err)
+		return false
+	}
+
+	expectedUser := os.Getenv("PROXY_USER")
+	expectedPass := os.Getenv("PROXY_PASS")
+
+	if string(username) == expectedUser && string(password) == expectedPass {
+		conn.Write([]byte{0x01, 0x00})
+		return true
+	}
+
+	conn.Write([]byte{0x01, 0x01})
+	return false
 }
