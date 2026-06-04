@@ -11,6 +11,17 @@ import (
 	"sync"
 )
 
+import (
+	"encoding/binary"
+	"flag"
+	"fmt"
+	"io"
+	"log"
+	"net"
+	"os"
+	"sync"
+)
+
 func main() {
 	port := flag.Int("port", 1080, "port to listen on")
 	flag.Parse()
@@ -247,27 +258,5 @@ func relay(client net.Conn, target net.Conn) {
 
 	wg.Wait()
 }
-func relay(client net.Conn, target net.Conn) {
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	go func() {
-		defer wg.Done()
-		io.Copy(target, client)
-		if tcp, ok := target.(*net.TCPConn); ok {
-			tcp.CloseWrite()
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		io.Copy(client, target)
-		if tcp, ok := client.(*net.TCPConn); ok {
-			tcp.CloseWrite()
-		}
-	}()
-
-	wg.Wait()
-}
-
+   
 
