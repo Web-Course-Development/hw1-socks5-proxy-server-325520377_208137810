@@ -9,18 +9,7 @@ import (
 	"net"
 	"os"
 	"sync"
-)
 
-import (
-	"encoding/binary"
-	"flag"
-	"fmt"
-	"io"
-	"log"
-	"net"
-	"os"
-	"sync"
-)
 
 func main() {
 	port := flag.Int("port", 1080, "port to listen on")
