@@ -247,3 +247,4 @@ func relay(client net.Conn, target net.Conn) {
 
 	wg.Wait()
 }
+{}

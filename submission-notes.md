@@ -10,3 +10,8 @@ Features:
 - Domain name support
 - Bidirectional relay
 - Concurrent connections
+- Updated by partner
+
+
+khksdhcj
+lkjljsdc
